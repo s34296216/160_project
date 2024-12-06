@@ -1,0 +1,25 @@
+<logs>
+  <log>
+    <timestamp>2024-11-20T10:15:35Z</timestamp>
+    <event>inventory_change</event>
+    <product_id>123</product_id>
+    <stock>50</stock>
+    <change>-1</change>
+    <reason>purchase</reason>
+  </log>
+  <log>
+    <timestamp>2024-11-20T10:16:00Z</timestamp>
+    <event>inventory_change</event>
+    <product_id>124</product_id>
+    <stock>0</stock>
+    <change>-1</change>
+    <reason>purchase</reason>
+  </log>
+  <log>
+    <timestamp>2024-11-20T10:17:00Z</timestamp>
+    <event>inventory_alert</event>
+    <product_id>124</product_id>
+    <stock>0</stock>
+    <action>restock required</action>
+  </log>
+</logs>
