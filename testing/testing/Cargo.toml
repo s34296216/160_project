@@ -7,3 +7,4 @@ edition = "2021"
 quick-xml = {version = "0.31", features = ["async-tokio", "serialize"]}
 tokio = { version = "1.42.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
+notify = "7.0.0"

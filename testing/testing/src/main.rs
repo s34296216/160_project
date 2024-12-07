@@ -1,15 +1,18 @@
 mod file_reader;
 use file_reader::read_file;
+mod watcher;
+use watcher::file_watcher;
 
 use tokio;
 
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file_name = "test_log.xml".to_string();
-    let inventories = read_file(&file_name).await.unwrap();
-
-    for inventory in &inventories { //use reference becasue no need to own
+    let (inventories, position) = read_file(&file_name, None).await?; //default 1, or use Some(N), N>=1
+    println!("current entry: {}", position );
+    
+    for inventory in &inventories { // use reference becasue no n eed to own
         println!("inventory:");
         println!("  Timestamp: {}", inventory.timestamp);
         println!("  Event: {}", inventory.event);
@@ -29,5 +32,13 @@ async fn main() {
         }
         println!();
     }
-
+    
+    loop {
+        if file_watcher(&file_name).await? {
+            println!("File modified");
+            break;
+        }
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    }
+    Ok(()) // like return 0 in c++
 }
