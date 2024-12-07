@@ -4,7 +4,7 @@ use quick_xml::de::from_reader;
 use serde::Deserialize;
 use tokio::fs::File;
 use tokio::io::{BufReader, AsyncReadExt};
-//use tokio::io::AsyncReadExt;
+
 use std::error::Error;
 //use std::string;
 
@@ -20,7 +20,7 @@ pub struct Inventory {
     pub timestamp: String,
     pub event: String,
     pub product_id: u32,
-    pub stock: i32,
+    pub stock: u32,
     #[serde(default)]
     pub change: Option<i32>,
     #[serde(default)]
@@ -30,9 +30,18 @@ pub struct Inventory {
 }
 
 
-pub async fn read_file(file_name: &str) -> Result<Vec<Inventory>, Box<dyn Error>> { // uniform error detection
+pub async fn read_file(file_name: &str, start: Option<usize>) -> Result< (Vec<Inventory>, usize),  Box<dyn Error>> { // uniform error detection
     let file = File::open(file_name).await?;
+    let start_position = 
+    if let Some(pos) = start {
+        pos.saturating_sub(1)
+    } else {
+        0
+    };
+
+
     let mut reader = BufReader::new(file);
+    
     
  
     let mut contents = String::new();
@@ -63,7 +72,11 @@ pub async fn read_file(file_name: &str) -> Result<Vec<Inventory>, Box<dyn Error>
         println!();
     }
     */
-    Ok(logs.logs)
+ //   Ok(logs.logs)
+   // let currect_position = start_position;
+    let partial_logs = logs.logs.into_iter().skip(start_position).collect::<Vec<Inventory>>();
+    let currect_position = start_position + partial_logs.len();
+    Ok((partial_logs, currect_position))
 }
 
 /* 
