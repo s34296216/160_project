@@ -15,7 +15,8 @@ struct Logs {
     logs: Vec<Inventory>, 
 }
 
-#[derive(Debug, Deserialize)] //need to be pubic for struct and its members
+/* 
+#[derive(Debug, Deserialize, Clone)] //need to be pubic for struct and its members
 pub struct Inventory { 
     pub timestamp: String,
     pub event: String,
@@ -28,18 +29,37 @@ pub struct Inventory {
     #[serde(default)]
     pub action: Option<String>,
 }
+*/
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Inventory { 
+    #[serde(default)]
+    pub timestamp: String,
+    #[serde(default)]
+    pub event: String,
+    #[serde(default)]
+    pub product_id: u32,
+    #[serde(default)]
+    pub stock: u32,
+    #[serde(default)]
+    pub change: Option<i32>,
+    #[serde(default)]
+    pub reason: Option<String>,
+    #[serde(default)]
+    pub action: Option<String>,
+}
 
-pub async fn read_file(file_name: &str, start: Option<usize>) -> Result< (Vec<Inventory>, usize),  Box<dyn Error>> { // uniform error detection
+pub async fn read_file(file_name: &str, start: &mut usize) -> Result< Vec<Inventory>,  Box<dyn Error + Send + Sync>> { // uniform error detection
     let file = File::open(file_name).await?;
-    let start_position = 
-    if let Some(pos) = start {
-        pos.saturating_sub(1)
-    } else {
-        0
-    };
+    
+    // let start_position = 
+    // if let Some(pos) = start {
+    //     pos.saturating_sub(1)
+    // } else {
+    //     0
+    // };
 
-
+    let start_position = start.saturating_sub(1);
     let mut reader = BufReader::new(file);
     
     
@@ -74,9 +94,31 @@ pub async fn read_file(file_name: &str, start: Option<usize>) -> Result< (Vec<In
     */
  //   Ok(logs.logs)
    // let currect_position = start_position;
-    let partial_logs = logs.logs.into_iter().skip(start_position).collect::<Vec<Inventory>>();
-    let currect_position = start_position + partial_logs.len();
-    Ok((partial_logs, currect_position))
+//    let partial_logs = 
+//    if start_position >= logs.logs.len() {
+//     Vec::new()
+//    } else {
+//     logs.logs[start_position..].to_vec()
+//    };
+
+    println!("The entire len is {}", logs.logs.len());
+  //  let index = logs.logs.len();
+    
+    let partial_logs = if start_position == 0 {
+        logs.logs.clone()
+    } else if start_position < logs.logs.len() {
+        vec![logs.logs.last().cloned().unwrap_or_default()]
+    } else {
+        Vec::new()
+    };
+    
+    println!("The len is {}", partial_logs.len());
+    // let mut current_position = 0;
+    // current_position = start_position + partial_logs.len();
+    *start = start_position + partial_logs.len();
+
+    
+    Ok(partial_logs)
 }
 
 /* 
