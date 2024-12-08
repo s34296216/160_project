@@ -17,7 +17,7 @@ async fn notice(delay:Duration, last_time:&mut Instant) ->bool
 
 
 
-pub async fn file_watcher(file_name: &str) -> Result< bool, Box<dyn std::error::Error>> {
+pub async fn file_watcher(file_name: &str) -> Result< bool, Box<dyn std::error::Error + Send + Sync>> {
     let (tx, rx) = channel();
 
     let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
@@ -29,7 +29,7 @@ pub async fn file_watcher(file_name: &str) -> Result< bool, Box<dyn std::error::
     let mut last_time = Instant::now();
     for res in rx {
         if let Ok(event) = res {
-            // Changed from match to if let for simpler pattern matching
+            
             if let notify::EventKind::Modify(_) = event.kind {
                 if notice(delay, &mut last_time).await {
                     return Ok(true);
