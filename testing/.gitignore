@@ -2,3 +2,6 @@
 /testing/Cargo.lock
 /testing/src/bin/
 watch_test.txt
+*.sum
+*.mod
+testing/test_log2.xml
