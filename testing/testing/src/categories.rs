@@ -64,3 +64,48 @@ pub mod inventory //like scope in c++
     }
 
 }
+
+
+pub mod page_response {
+    use serde::{Deserialize, Serialize};
+    use crate::file_reader::PageResponse;
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct PageResponseUpdate {
+        pub timestamp: String,
+        pub user_ip: String,
+        pub event: String,
+        pub endpoint: String,
+        pub response_time_ms: String,
+        pub status: String,
+    }
+
+    pub fn pag_filtering(responses: &Vec<PageResponse>) -> Result<String, serde_json::Error> {
+        let mut filtered = Vec::new();
+        
+        for response in responses.iter() {
+            
+            let response_time = response.response_time_ms;
+            let mut status = String::new();
+
+            if response_time > 1000 {
+                status = "slow".to_string();
+            }
+            else {
+                status = "normal".to_string();
+            }
+            
+            let update = PageResponseUpdate {
+                timestamp: response.timestamp.clone(),
+                user_ip: response.user_ip.clone(),
+                event: response.event.clone(),
+                endpoint: response.endpoint.clone(),
+                response_time_ms: response.response_time_ms.to_string(),
+                status,
+            };
+            filtered.push(update);
+        }
+        
+        serde_json::to_string_pretty(&filtered)
+    }
+}

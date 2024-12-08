@@ -1,9 +1,10 @@
 mod file_reader;
-use file_reader::{read_file, Inventory};
+use file_reader::{read_page_logs, PageResponse, Inventory };
 mod watcher;
 use watcher::file_watcher;
 mod categories;
-use categories::inventory::inv_filtering ;
+//use categories::inventory::inv_filtering ;
+use categories::page_response::pag_filtering;
 //use serde::{Deserialize, Serialize};
 use tokio;
 use async_nats::connect;
@@ -71,8 +72,9 @@ fn inv_filtering(inventories: &Vec<Inventory>) -> Result<String, serde_json::Err
 }
 */
 
-/* 
-fn display(vec: &Vec<file_reader::Inventory>) {
+
+
+fn display_inv(vec: &Vec<file_reader::Inventory>) {
     println!("The processed logs are:");
     for inventory in vec {
         println!("inventory:");
@@ -94,8 +96,20 @@ fn display(vec: &Vec<file_reader::Inventory>) {
         }
         println!();
     }
-} 
-*/
+}  
+
+pub fn display_pag(vec: &Vec<PageResponse>) {
+    println!("The processed logs are:");
+    for page in vec {
+        println!("page_response:");
+        println!("  Timestamp: {}", page.timestamp);
+        println!("  Event: {}", page.event);
+        println!("  User IP: {}", page.user_ip);
+        println!("  Endpoint: {}", page.endpoint);
+        println!("  Response Time: {}ms", page.response_time_ms);
+        println!();
+    }
+}
 
 
 
@@ -114,16 +128,21 @@ async fn publish_message(filtered_data: String, topic: String) -> Result<(), Box
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let file_name = "test_log.xml".to_string();
+    let file_name = "test_log2.xml".to_string();
     let mut position = 0;
-    let inventories = read_file(&file_name, &mut position).await?;
+   // let inventories = read_file(&file_name, &mut position).await?;
+    let page_logs = read_page_logs(&file_name, &mut position).await?;
     println!("current entry: {}", &position);
   //  display(&inventories);
+   // display_pag(&page_logs);
+   
+
+
     
-    let filtered_data = inv_filtering(&inventories)?;
-    println!("Filtered data:\n{}", filtered_data);
+     let filtered_data = pag_filtering(&page_logs)?;
+     println!("Filtered data:\n{}", filtered_data);
     
-    publish_message(filtered_data, "inventory.updates".to_string()).await?;
+    // publish_message(filtered_data, "inventory.updates".to_string()).await?;
 
 
     // let mut stock: Vec<u32> = Vec::new();
@@ -135,29 +154,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // }
 
 
-   /* 
-    for inventory in &inventories { // use reference becasue no n eed to own
-        println!("inventory:");
-        println!("  Timestamp: {}", inventory.timestamp);
-        println!("  Event: {}", inventory.event);
-        println!("  Product ID: {}", inventory.product_id);
-        println!("  Stock: {}", inventory.stock);
-        
-        if let Some(change) = inventory.change {
-            println!("  Change: {}", change);
-        }
-        
-        if let Some(reason) = &inventory.reason {
-            println!("  Reason: {}", reason);
-        }
-        
-        if let Some(action) = &inventory.action {
-            println!("  Action: {}", action);
-        }
-        println!();
-    }
-    */
-  //  let index :usize = position;
+
+
+   
         let mut position2 = position.saturating_add(1);
     loop {
         if file_watcher(&file_name).await? {
@@ -166,15 +165,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
           //  let mut inventories:Vec<Inventory> = Vec::new();
           //  let mut new_index :usize = 0;
           // let (inventories, posistion) = read_file(&file_name, position.saturating_add(1)).await?;
-           let inventories = read_file(&file_name, &mut position2).await?;
+           let logs = read_page_logs(&file_name, &mut position2).await?;
          //   println!("current entry: {}", &posistion2);
          //   display(&inventories);
          //   position = index;
          //   break;
-             let new_data = inv_filtering(&inventories)?;
+             let new_data = pag_filtering(&logs)?;
              println!("Filtered data:\n{}", new_data);
            
-             publish_message(new_data, "inventory.updates".to_string()).await?;
+           //  publish_message(new_data, "inventory.updates".to_string()).await?;
         }
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
