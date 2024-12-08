@@ -46,7 +46,7 @@ pub async fn read_page_logs(file_name: &str, start: &mut usize) -> Result<Vec<Pa
     
     let mut contents = String::new();
     reader.read_to_string(&mut contents).await?;
-    println!("Raw XML: {}", contents);
+   // println!("Raw XML: {}", contents);
     
     let logs: PageLogs = from_reader(contents.as_bytes())?;
     
@@ -73,7 +73,7 @@ pub async fn read_inventory_logs(file_name: &str, start: &mut usize) -> Result<V
     
     let mut contents = String::new();
     reader.read_to_string(&mut contents).await?;
-    println!("Raw XML: {}", contents);
+ //   println!("Raw XML: {}", contents);
     
     let logs: InventoryLogs = from_reader(contents.as_bytes())?;
     
