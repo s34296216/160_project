@@ -24,9 +24,10 @@
   </log>
   <log>
     <timestamp>2024-11-20T10:17:00Z</timestamp>
-    <event>inventory_alert</event>
+    <event>inventory_change</event>
     <product_id>125</product_id>
     <stock>15</stock>
     <change>3</change>
-  </log>      
+    <reason>buy</reason>    
+  </log>       
 </logs>
