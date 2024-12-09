@@ -1,5 +1,7 @@
 mod file_reader;
-use file_reader::{read_page_logs, PageResponse, read_inventory_logs, Inventory };
+use std::vec;
+
+use file_reader::{read_page_logs, read_inventory_logs };
 mod watcher;
 use watcher::file_watcher;
 mod categories;
@@ -9,68 +11,7 @@ use categories::page_response::pag_filtering;
 use tokio::task;
 use async_nats::connect;
 
-/* 
-#[derive(Debug, Serialize, Deserialize)]
-struct StockDetail
-{ 
-    stock: u32,
-    change: Option<i32>,
-    reason: Option<String>
-}
 
-#[derive(Debug, Serialize, Deserialize)]
-struct InventoryUpdate {
-    timestamp: String,
-    product_id: u32,
-    event: String,
-    details: StockDetail,
-    status: String,
-    message: String
-}
-
-
-fn inv_filtering(inventories: &Vec<Inventory>) -> Result<String, serde_json::Error> {
-    let mut filtered = Vec::new();
-    
-    for inventory in inventories.iter() {
-        
-        let current_stock = inventory.stock;
-        let mut status = String::new();
-        let mut message = String::new();
-        if current_stock >= 50
-        {
-            status = "ok".to_string();
-            message = "Inventory updated successfully.".to_string();
-        }
-        else if  current_stock >=10  
-        {
-             status = "reminder".to_string();
-             message = "Low inventory.".to_string();
-        }
-        else if current_stock < 10
-        {
-             status = "warning".to_string();
-             message = "Immediate restocking required.".to_string();
-        }
-        
-        let update = InventoryUpdate {
-            timestamp: inventory.timestamp.clone(),
-            product_id: inventory.product_id,
-            event: inventory.event.clone(),
-            details: StockDetail {
-                stock: inventory.stock,
-                change: inventory.change,
-                reason: inventory.reason.clone()
-            },
-            status,
-            message
-        };
-        filtered.push(update);
-    }
-    
-    return serde_json::to_string_pretty(&filtered);
-}
-*/
 
 
 
@@ -98,7 +39,7 @@ async fn display_inv(vec: &Vec<file_reader::Inventory>) {
     }
 }  
 
-async fn display_pag(vec: &Vec<PageResponse>) {
+async fn display_pag(vec: &Vec<file_reader::PageResponse>) {
     println!("The processed logs are:");
     for page in vec {
         println!("page_response:");
@@ -130,7 +71,14 @@ async fn publish_message(filtered_data: String, topic: String) -> Result<(), Box
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let file_name = "test_log2.xml".to_string();
     let file_name_2 = "test_log.xml".to_string();
-     
+
+    let paths=vec!["test_log.xml", "test_log2.xml" ];
+    // if file_watcher(paths).await?
+    // {
+    //     println!("succeeded");
+    // }
+
+      
     let task_1 = task::spawn(async move{
         let mut position = 0;
         let inventories = read_inventory_logs(&file_name_2, &mut position).await?;
@@ -138,18 +86,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let filtered_data = inv_filtering(&inventories)?;
         println!("{}", filtered_data);
         publish_message(filtered_data, "inventory.updates".to_string()).await?;
-        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+        Ok::<usize, Box<dyn std::error::Error + Send + Sync>>(position)
     });
+
     let task_2 = task::spawn(async move{
         let mut position = 0;
         let page_logs = read_page_logs(&file_name, &mut position).await?;
         display_pag(&page_logs).await;
         let filtered_data = pag_filtering(&page_logs)?;
         println!("{}", filtered_data);
-        publish_message(filtered_data, "page.response".to_string()).await?;
-        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+     //   publish_message(filtered_data, "page.response".to_string()).await?;
+        Ok::<usize, Box<dyn std::error::Error + Send + Sync>>(position)
     });
-    let _ = tokio::join!(task_1, task_2);
+    let (inv_pos,pag_pos) = tokio::join!(task_1, task_2);
+
+
+
 
    // let mut position = 0;
    // let inventories = read_file(&file_name, &mut position).await?;
@@ -177,30 +129,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     //     println!("{}", stock[i]);
     // }
 
+    
+        let inv_pos = inv_pos??; // Unwrap the Result and handle the error if it occurs
+        let pag_pos = pag_pos??;
+ 
+    
+        let mut pag_pos2 = pag_pos.saturating_add(1); 
+        let mut inv_pos2 = inv_pos.saturating_add(1);
 
-
-/* 
-   
-        let mut position2 = position.saturating_add(1);
+        println!("Into the loop");
     loop {
-        if file_watcher(&file_name).await? {
+        if file_watcher(&paths, &mut inv_pos2, &mut pag_pos2 ).await? {
             println!("File modified");
             
-          //  let mut inventories:Vec<Inventory> = Vec::new();
-          //  let mut new_index :usize = 0;
-          // let (inventories, posistion) = read_file(&file_name, position.saturating_add(1)).await?;
-           let logs = read_page_logs(&file_name, &mut position2).await?;
-         //   println!("current entry: {}", &posistion2);
-         //   display(&inventories);
-         //   position = index;
-         //   break;
-             let new_data = pag_filtering(&logs)?;
-             println!("Filtered data:\n{}", new_data);
+        //    let mut inventories:Vec<Inventory> = Vec::new();
+        //    let mut new_index :usize = 0;
+        //   let (inventories, posistion) = read_file(&file_name, position.saturating_add(1)).await?;
+        //   let logs = read_page_logs(&file_name, &mut pag_pos2).await?;
+        //    println!("current entry: {}", &posistion2);
+        //    display(&inventories);
+        //    position = index;
+        //    break;
+            //  let new_data = pag_filtering(&logs)?;
+            //  println!("Filtered data:\n{}", new_data);
            
            //  publish_message(new_data, "inventory.updates".to_string()).await?;
         }
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
-*/    
+    
+    #[allow(unreachable_code)]
     Ok(()) // like return 0 in c++
 }
