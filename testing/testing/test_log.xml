@@ -20,7 +20,7 @@
     <event>inventory_alert</event>
     <product_id>124</product_id>
     <stock>0</stock>
-    <action>restock required</action>
+    <change>0</change>    
   </log>
   <log>
     <timestamp>2024-11-20T10:17:00Z</timestamp>
