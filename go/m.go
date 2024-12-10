@@ -42,12 +42,36 @@ func NewMetric() *Metrics {
 	}
 }
 
+//updating it with more messages
 func UpdateMetrics (msg InventoryMessage) {
 	msg.Updates++
 	StockChanges += msg.Details.Change
 	msg.Event[msg.ProductID]++
 	msg.LowStockAlerts++
 
+}
+
+// similar to the process of connecting to nats server
+func dataReceiver(address string) {
+	sub, err := zmq4.NewSocket(zmq4.SUB)
+
+	if err != nil {
+		log.Printf("Error creating ZMQ %v\n", err)
+	}
+
+	defer sub.Close()
+
+	if err := sub.Connect(address); err != nil {
+		log.Printf("Error connecting to ZeroMQ address %s: %v", address, err)
+	}
+
+	if err := sub.SetSubscribe(""); err != nil {
+		log.Printf("Error setting subscription: %v", err)
+	}
+
+	log.Printf("Connected to ZeroMQ at %s\n", address)
+
+	// the above ensures a successful connection
 }
 
 
