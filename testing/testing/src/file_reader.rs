@@ -22,27 +22,28 @@ pub struct PageResponse {
     pub event: String,
     pub user_ip: String,
     pub endpoint: String,
-    pub response_time_ms: u32,
+    pub response_time_ms: u16,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Inventory { 
     pub timestamp: String,
     pub event: String,
-    pub product_id: u32,
-    pub stock: u32,
+    pub product_id: u16,
+    pub stock: u16,
     #[serde(default)]
     pub change: Option<i32>,
     #[serde(default)]
     pub reason: Option<String>,
-    #[serde(default)]
-    pub action: Option<String>,
+ //   #[serde(default)]
+  //  pub action: Option<String>,
 }
 
 pub async fn read_page_logs(file_name: &str, start: &mut usize) -> Result<Vec<PageResponse>, Box<dyn Error + Send + Sync>> {
     let file = File::open(file_name).await?;
     let start_position = start.saturating_sub(1);
-    let mut reader = BufReader::new(file);
+    //let mut reader = BufReader::new(file);
+    let mut reader = BufReader::with_capacity(32*1024, file);
     
     let mut contents = String::new();
     reader.read_to_string(&mut contents).await?;
