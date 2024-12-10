@@ -179,6 +179,18 @@ func WebSocketServer(b *Broadcast) {
 	http.ListenAndServe(":8080", nil)
 }
 
+func (m *Metrics) Results() map[string]interface{} {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	return map[string]interface{}{
+		"total_updates":    m.Updates,
+		"low_stock_alerts": m.LowStockAlerts,
+		"stock_changes":    m.StockChanges,
+		"events_by_product": m.Events,
+	}
+	
+}
 
 
 func main() {
