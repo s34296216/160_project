@@ -32,9 +32,9 @@ async fn display_inv(vec: &Vec<file_reader::Inventory>) {
             println!("  Reason: {}", reason);
         }
 
-        if let Some(action) = &inventory.action {
-            println!("  Action: {}", action);
-        }
+        // if let Some(action) = &inventory.action {
+        //     println!("  Action: {}", action);
+        // }
         println!();
     }
 }  

@@ -5,3 +5,4 @@ watch_test.txt
 watch_test2.txt
 *.sum
 *.mod
+*.bak
