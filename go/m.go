@@ -9,6 +9,7 @@ import {
 
 	"github.com/nats-io/nats.go"
 	zmq "github.com/pebbe/zmq4"
+	"github.com/gorilla/websocket"
 }
 
 type InventoryDetails struct {
@@ -33,46 +34,126 @@ type Metrics struct {
 	LowStockAlerts int
 	Events map[int]int  
 	// ^^ each event for every product id
+	// need mutex to keep locks and help threads
+	mutex sync.Mutex
 }
 
 // making the new metrics for each event for each product
 func NewMetric() *Metrics {
 	return &Metrics{
-		Events: make(mape[int]int),
+		Events: make(map[int]int),
 	}
 }
 
 //updating it with more messages
-func UpdateMetrics (msg InventoryMessage) {
-	msg.Updates++
-	StockChanges += msg.Details.Change
-	msg.Event[msg.ProductID]++
-	msg.LowStockAlerts++
+func (m *Metrics) UpdateMetrics(msg InventoryMessage) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	m.Updates++
+	m.StockChanges += msg.Details.Change
+	m.Event[msg.ProductID]++
+
+	if msg.Status == "alert" {
+		m.LowStockAlerts++
+	}
 
 }
 
 // similar to the process of connecting to nats server
-func dataReceiver(address string) {
+// process incoming data
+func dataReceiver(address string, messageChannel chan<- InventoryMessage) {
+
+	sub, err := zmq.NewContext()
+    if err != nil {
+        log.Fatal("Error creating ZMQ context:", err)
+    }
+    defer sub.Term()
+
 	sub, err := zmq4.NewSocket(zmq4.SUB)
-
 	if err != nil {
-		log.Printf("Error creating ZMQ %v\n", err)
+		log.Fatal("Error creating ZMQ sub %v\n", err)
 	}
-
 	defer sub.Close()
 
-	if err := sub.Connect(address); err != nil {
-		log.Printf("Error connecting to ZeroMQ address %s: %v", address, err)
+	err := sub.Connect(address)
+	if err != nil {
+		log.Fatal("Error connecting to ZeroMQ address %s: %v", address, err)
 	}
 
-	if err := sub.SetSubscribe(""); err != nil {
-		log.Printf("Error setting subscription: %v", err)
+	err := sub.SetSubscribe("")
+	if err != nil {
+		log.Fatal("Error setting subscription: %v", err)
 	}
 
 	log.Printf("Connected to ZeroMQ at %s\n", address)
 
 	// the above ensures a successful connection
+
+	// start receiving messages
+	// continuously
+	for {
+		mes, err := sub.Recv(0)
+		if err != nil {
+			log.Printf("Error receiving message %v\n", err)
+			continue
+		}
+
+		var messages InventoryMessage
+		if err := json.Unmarshal([]byte(mes), &messages); err != nil {
+			log.Printf("Error parsing message: %v\n", err, mes)
+			continue
+		}
+
+		// sending the msg to the channel
+		messageChannel <- messages
+
+
+	}
 }
+
+
+// send results to connect clients in real time
+type Broadcast struct {
+	clients    map[*websocket.Conn]bool
+	mutex         sync.Mutex
+}
+
+func NewBroadcast() *Broadcast {
+	return &Broadcast{
+		clients:    make(map[*websocket.Conn]bool),
+	}
+}
+
+// new client add websocket
+func (b *Broadcast) AddClient(conn *websocket.Conn) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	b.clients[conn] = true
+}
+
+// remove
+func (b *Broadcast) RemoveClient(conn *websocket.Conn) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	delete(b.clients, conn)
+	conn.Close()
+}
+
+// broadcast msg
+func (b *Broadcast) Broadcast(message interface{}) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	for client := range b.clients {
+		err := client.WriteJSON(message)
+		if err != nil {
+			log.Printf("Error sending message: %v", err)
+			b.RemoveClient(client)
+		}
+	}
+}
+
 
 
 func main() {
@@ -85,36 +166,38 @@ func main() {
 	defer nc.Drain()
 	fmt.Println("Listening localhost:4222 ")
 
-	// Subscribe to inventory updates
-	sub, err := nc.Subscribe("inventory.updates", func(m *nats.Msg) {
-		var messages []InventoryMessage
-		if err := json.Unmarshal(m.Data, &messages); err != nil {
-			fmt.Printf("Error parsing message: %v\n", err)
-			return
-		}
 
-		for _, msg := range messages {
-			fmt.Printf("Timestamp: %s\n", msg.Timestamp)
-			fmt.Printf("Product ID: %d\n", msg.ProductID)
-			fmt.Printf("Event: %s\n", msg.Event)
-			fmt.Printf("Status: %s\n", msg.Status)
-			fmt.Printf("Stock: %d\n", msg.Details.Stock)
-			if msg.Details.Change != nil {
-				fmt.Printf("Change: %d\n", *msg.Details.Change)
-			}
-			if msg.Details.Reason != nil {
-				fmt.Printf("Reason: %s\n", *msg.Details.Reason)
-			}
-			fmt.Printf("Message: %s\n", msg.Message)
-			fmt.Println("-------------------")
-		}
-	})
-	if err != nil {
-		fmt.Printf("Error subscribing: %v\n", err)
-		return
-	}
-	defer sub.Unsubscribe()
 
-	// Keep the connection alive
-	select {}
+	// // Subscribe to inventory updates
+	// sub, err := nc.Subscribe("inventory.updates", func(m *nats.Msg) {
+	// 	var messages []InventoryMessage
+	// 	if err := json.Unmarshal(m.Data, &messages); err != nil {
+	// 		fmt.Printf("Error parsing message: %v\n", err)
+	// 		return
+	// 	}
+
+	// 	for _, msg := range messages {
+	// 		fmt.Printf("Timestamp: %s\n", msg.Timestamp)
+	// 		fmt.Printf("Product ID: %d\n", msg.ProductID)
+	// 		fmt.Printf("Event: %s\n", msg.Event)
+	// 		fmt.Printf("Status: %s\n", msg.Status)
+	// 		fmt.Printf("Stock: %d\n", msg.Details.Stock)
+	// 		if msg.Details.Change != nil {
+	// 			fmt.Printf("Change: %d\n", *msg.Details.Change)
+	// 		}
+	// 		if msg.Details.Reason != nil {
+	// 			fmt.Printf("Reason: %s\n", *msg.Details.Reason)
+	// 		}
+	// 		fmt.Printf("Message: %s\n", msg.Message)
+	// 		fmt.Println("-------------------")
+	// 	}
+	// })
+	// if err != nil {
+	// 	fmt.Printf("Error subscribing: %v\n", err)
+	// 	return
+	// }
+	// defer sub.Unsubscribe()
+
+	// // Keep the connection alive
+	// select {}
 }
