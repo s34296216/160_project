@@ -31,7 +31,23 @@ type Metrics struct {
 	Updates   int
 	StockChanges   int
 	LowStockAlerts int
-	Events int
+	Events map[int]int  
+	// ^^ each event for every product id
+}
+
+// making the new metrics for each event for each product
+func NewMetric() *Metrics {
+	return &Metrics{
+		Events: make(mape[int]int),
+	}
+}
+
+func UpdateMetrics (msg InventoryMessage) {
+	msg.Updates++
+	StockChanges += msg.Details.Change
+	msg.Event[msg.ProductID]++
+	msg.LowStockAlerts++
+
 }
 
 
