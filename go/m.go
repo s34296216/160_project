@@ -6,6 +6,7 @@ import {
 	"log"
 	"os"
 	"sync"
+	"net/http"
 
 	"github.com/nats-io/nats.go"
 	zmq "github.com/pebbe/zmq4"
@@ -62,7 +63,7 @@ func (m *Metrics) UpdateMetrics(msg InventoryMessage) {
 
 // similar to the process of connecting to nats server
 // process incoming data
-func dataReceiver(address string, messageChannel chan<- InventoryMessage) {
+func DataReceiver(address string, messageChannel chan<- InventoryMessage) {
 
 	sub, err := zmq.NewContext()
     if err != nil {
@@ -152,6 +153,30 @@ func (b *Broadcast) Broadcast(message interface{}) {
 			b.RemoveClient(client)
 		}
 	}
+}
+
+// upgrade
+var upgrade = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+// connects to websocket server
+func WebSocketServer(b *Broadcast) {
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrade.Upgrade(w, r, nil)
+		if err != nil {
+			log.Fatal("Upgrade error: %v", err)
+			return
+		}
+
+		b.AddClient(conn)
+		log.Println("Client added and conncected")
+	})
+
+	log.Println("WebSocket server started at ws://localhost:8080/ws")
+	http.ListenAndServe(":8080", nil)
 }
 
 
