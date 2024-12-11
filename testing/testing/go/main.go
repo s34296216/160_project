@@ -17,6 +17,7 @@ package main
 // 	"github.com/gorilla/websocket"
 // }
 
+// all required imports needed
 import (
 	"encoding/json"
 	"fmt"
@@ -30,12 +31,14 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// inventory detail
 type InventoryDetails struct {
 	Stock  int     `json:"stock_level"`
 	Change *int    `json:"change"`
 	Reason *string `json:"reason"`
 }
 
+// inventory message
 type InventoryMessage struct {
 	Timestamp string           `json:"timestamp"`
 	ProductID int              `json:"product_id"`
@@ -65,9 +68,11 @@ func NewMetric() *Metrics {
 
 // updating it with more messages
 func (m *Metrics) UpdateMetrics(msg InventoryMessage) {
+	// mutex lock to keep track of different msgs from diff clients being updated at a time
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
+	// updating all the metrics so the msg changes to the newest
 	m.Updates++
 	// debugging fixes this stockchange error
 	// only stock change if there is changes happening
@@ -77,6 +82,7 @@ func (m *Metrics) UpdateMetrics(msg InventoryMessage) {
 
 	m.Events[msg.ProductID]++
 
+	// only if it is an alert
 	if msg.Status == "alert" {
 		m.LowStockAlerts++
 	}
@@ -99,16 +105,19 @@ func DataReceiver(address string, messageChannel chan<- InventoryMessage) {
 	// defer subscriber.Close()
 
 	// debugging, fixes declaring error
+	// checking zeromq context and output err if not done correctly
 	context, err := zmq.NewContext()
 	if err != nil {
 		log.Fatal("Error creating ZMQ context:", err)
 	}
 	defer context.Term()
 
+	// checking zeromq pub and output err if not done correctly
 	publisher, _ := zmq.NewSocket(zmq.PUB)
 	publisher.SetLinger(0)
 	defer publisher.Close()
 
+	// checking zeromq bind and output err if not done correctly
 	publisher.Bind("tcp://127.0.0.1:9092")
 	if err != nil {
 		log.Fatal("Error creating ZMQ pub:", err)
@@ -116,22 +125,26 @@ func DataReceiver(address string, messageChannel chan<- InventoryMessage) {
 
 	// sub, err := context.NewSocket(zmq.sub)
 	// sub, err := zmq.NewSocket(zmq.SUB)
+	// checking zeromq sub and output err if not done correctly
 	sub, err := zmq.NewSocket(zmq.SUB)
 	if err != nil {
 		log.Printf("Error creating ZMQ sub %v\n", err)
 	}
 	defer sub.Close()
 
+	// checking zeromq connection and output err if not done correctly
 	err = sub.Connect(address)
 	if err != nil {
 		log.Printf("Error connecting to ZeroMQ address %s: %v", address, err)
 	}
 
+	// checking zeromq set sub and output err if not done correctly
 	err = sub.SetSubscribe("")
 	if err != nil {
 		log.Printf("Error setting subscription: %v", err)
 	}
 
+	// success msg
 	log.Printf("Connected to ZeroMQ at %s\n", address)
 
 	// the above ensures a successful connection
@@ -140,12 +153,14 @@ func DataReceiver(address string, messageChannel chan<- InventoryMessage) {
 	// continuously
 	for {
 		mes, err := sub.Recv(0)
+		// error msg
 		if err != nil {
 			log.Printf("Error receiving message %v\n", err)
 			continue
 		}
 
 		var messages InventoryMessage
+		// error msg
 		if err := json.Unmarshal([]byte(mes), &messages); err != nil {
 			log.Printf("Error parsing message: %v\n", err)
 			continue
@@ -171,13 +186,15 @@ func NewBroadcast() *Broadcast {
 
 // new client add websocket
 func (b *Broadcast) AddClient(conn *websocket.Conn) {
+	// mutex lock for controlling a lot of clients connection
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	b.clients[conn] = true
 }
 
-// remove
+// remove clients
 func (b *Broadcast) RemoveClient(conn *websocket.Conn) {
+	// mutex lock for controlling a lot of clients connection
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	delete(b.clients, conn)
@@ -186,11 +203,14 @@ func (b *Broadcast) RemoveClient(conn *websocket.Conn) {
 
 // broadcast msg
 func (b *Broadcast) Broadcast(message interface{}) {
+	// mutex lock since there are many different messages to broadcast for each client
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
+	// go through all the clients
 	for client := range b.clients {
 		err := client.WriteJSON(message)
+		// error msg and removing clients that are not connected anymore
 		if err != nil {
 			log.Printf("Error sending message: %v", err)
 			b.RemoveClient(client)
@@ -198,7 +218,7 @@ func (b *Broadcast) Broadcast(message interface{}) {
 	}
 }
 
-// upgrade
+// upgrade the websocket
 var upgradews = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
@@ -207,30 +227,40 @@ var upgradews = websocket.Upgrader{
 
 // connects to websocket server
 func WebSocketServer(b *Broadcast) {
+	// ws server
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgradews.Upgrade(w, r, nil)
+		// error msg
 		if err != nil {
 			log.Printf("Upgrade error: %v", err)
 			return
 		}
 
+		// adding new client
 		b.AddClient(conn)
 		log.Println("Client added and connected")
 
+		// for debugging purpose to check new client has been added
 		err = conn.WriteMessage(websocket.TextMessage, []byte("Hello, client!"))
+		// error msg
 		if err != nil {
 			log.Printf("Error sending message: %v", err)
 		}
 	})
 
-	log.Println("WebSocket server started at ws://localhost:8080/ws")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	// ws server started
+	log.Println("WebSocket server started at ws://localhost:8081/ws")
+	log.Fatal(http.ListenAndServe(":8081", nil))
 }
 
+// to get the final results of the update with a mutex lock
+// for concurrency getting results from different clients
 func (m *Metrics) Results() map[string]interface{} {
+	// mutex lock to keep track of different results from diff clients being updated at a time
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
+	// returning results
 	return map[string]interface{}{
 		"total_updates":     m.Updates,
 		"low_stock_alerts":  m.LowStockAlerts,
@@ -297,36 +327,6 @@ func main() {
 		}
 
 	})
-	// 	var messages []InventoryMessage
-	// 	if err := json.Unmarshal(m.Data, &messages); err != nil {
-	// 		fmt.Printf("Error parsing message: %v\n", err)
-	// 		return
-	// 	}
-
-	// 	for _, msg := range messages {
-	// 		fmt.Printf("Timestamp: %s\n", msg.Timestamp)
-	// 		fmt.Printf("Product ID: %d\n", msg.ProductID)
-	// 		fmt.Printf("Event: %s\n", msg.Event)
-	// 		fmt.Printf("Status: %s\n", msg.Status)
-	// 		fmt.Printf("Stock: %d\n", msg.Details.Stock)
-	// 		if msg.Details.Change != nil {
-	// 			fmt.Printf("Change: %d\n", *msg.Details.Change)
-	// 		}
-	// 		if msg.Details.Reason != nil {
-	// 			fmt.Printf("Reason: %s\n", *msg.Details.Reason)
-	// 		}
-	// 		fmt.Printf("Message: %s\n", msg.Message)
-	// 		fmt.Println("-------------------")
-	// 	}
-	// })
-	// if err != nil {
-	// 	fmt.Printf("Error subscribing: %v\n", err)
-	// 	return
-	// }
-	// defer sub.Unsubscribe()
-
-	// // Keep the connection alive
-	// select {}
 
 	// Main loop to process messages
 	for msg := range messageChannel {
@@ -337,37 +337,4 @@ func main() {
 		summary := metrics.Results()
 		broadcast.Broadcast(summary)
 	}
-
-	// // Subscribe to inventory updates
-	// sub, err := nc.Subscribe("inventory.updates", func(m *nats.Msg) {
-	// 	var messages []InventoryMessage
-	// 	if err := json.Unmarshal(m.Data, &messages); err != nil {
-	// 		fmt.Printf("Error parsing message: %v\n", err)
-	// 		return
-	// 	}
-
-	// 	for _, msg := range messages {
-	// 		fmt.Printf("Timestamp: %s\n", msg.Timestamp)
-	// 		fmt.Printf("Product ID: %d\n", msg.ProductID)
-	// 		fmt.Printf("Event: %s\n", msg.Event)
-	// 		fmt.Printf("Status: %s\n", msg.Status)
-	// 		fmt.Printf("Stock: %d\n", msg.Details.Stock)
-	// 		if msg.Details.Change != nil {
-	// 			fmt.Printf("Change: %d\n", *msg.Details.Change)
-	// 		}
-	// 		if msg.Details.Reason != nil {
-	// 			fmt.Printf("Reason: %s\n", *msg.Details.Reason)
-	// 		}
-	// 		fmt.Printf("Message: %s\n", msg.Message)
-	// 		fmt.Println("-------------------")
-	// 	}
-	// })
-	// if err != nil {
-	// 	fmt.Printf("Error subscribing: %v\n", err)
-	// 	return
-	// }
-	// defer sub.Unsubscribe()
-
-	// // Keep the connection alive
-	// select {}
 }
