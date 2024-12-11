@@ -1,0 +1,8 @@
+/testing/target/
+/testing/Cargo.lock
+/testing/src/bin/
+watch_test.txt
+watch_test2.txt
+*.sum
+*.mod
+*.bak
