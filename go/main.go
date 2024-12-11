@@ -24,7 +24,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"github.com/pebbe/zmq4"
+
 	zmq "github.com/pebbe/zmq4"
 	// "github.com/nats-io/nats.go"
 )
@@ -68,6 +68,7 @@ func (m *Metrics) UpdateMetrics(msg InventoryMessage) {
 	defer m.mutex.Unlock()
 
 	m.Updates++
+	// debugging fixes this stockchange error
 	// only stock change if there is changes happening
 	if msg.Details.Change != nil {
 		m.StockChanges += *msg.Details.Change
@@ -85,24 +86,44 @@ func (m *Metrics) UpdateMetrics(msg InventoryMessage) {
 // process incoming data
 func DataReceiver(address string, messageChannel chan<- InventoryMessage) {
 
-	sub, err := zmq.NewContext()
+	// example of SUB working
+	// publisher, _ := zmq.NewSocket(zmq.PUB)
+	// publisher.SetLinger(0)
+	// defer publisher.Close()
+
+	// publisher.Bind("tcp://127.0.0.1:9092")
+
+	// subscriber, _ := zmq.NewSocket(zmq.SUB)
+	// // subscriber.SetLinger(0)
+	// defer subscriber.Close()
+
+	// debugging, fixes declaring error
+	context, err := zmq.NewContext()
 	if err != nil {
 		log.Fatal("Error creating ZMQ context:", err)
 	}
-	defer sub.Term()
+	defer context.Term()
 
-	sub, err := zmq4.NewSocket(zmq4.SUB)
+	publisher, _ := zmq.NewSocket(zmq.PUB)
+	publisher.SetLinger(0)
+	defer publisher.Close()
+
+	publisher.Bind("tcp://127.0.0.1:9092")
+
+	// sub, err := context.NewSocket(zmq.sub)
+	// sub, err := zmq.NewSocket(zmq.SUB)
+	sub, err := zmq.NewSocket(zmq.SUB)
 	if err != nil {
 		log.Fatal("Error creating ZMQ sub %v\n", err)
 	}
 	defer sub.Close()
 
-	err := sub.Connect(address)
+	err = sub.Connect(address)
 	if err != nil {
 		log.Fatal("Error connecting to ZeroMQ address %s: %v", address, err)
 	}
 
-	err := sub.SetSubscribe("")
+	err = sub.SetSubscribe("")
 	if err != nil {
 		log.Fatal("Error setting subscription: %v", err)
 	}
@@ -174,7 +195,7 @@ func (b *Broadcast) Broadcast(message interface{}) {
 }
 
 // upgrade
-var upgrade = websocket.Upgrader{
+var upgradews = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
@@ -183,9 +204,9 @@ var upgrade = websocket.Upgrader{
 // connects to websocket server
 func WebSocketServer(b *Broadcast) {
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		conn, err := upgrade.Upgrade(w, r, nil)
+		conn, err := upgradews.Upgrade(w, r, nil)
 		if err != nil {
-			log.Fatal("Upgrade error: %v", err)
+			log.Printf("Upgrade error: %v", err)
 			return
 		}
 
@@ -194,7 +215,7 @@ func WebSocketServer(b *Broadcast) {
 	})
 
 	log.Println("WebSocket server started at ws://localhost:8080/ws")
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func (m *Metrics) Results() map[string]interface{} {
@@ -231,7 +252,7 @@ func main() {
 	go WebSocketServer(broadcast)
 
 	// Start ZeroMQ Data Receiver
-	address := "tcp://localhost:8080"
+	address := "tcp://localhost:8888"
 	go DataReceiver(address, messageChannel)
 
 	// Main loop to process messages
