@@ -243,13 +243,13 @@ func (m *Metrics) Results() map[string]interface{} {
 func main() {
 	// building bridge from NATS to ZeroMQ for communication between backend
 	// Connect to NATS server
-	nc, err := nats.Connect("nats://localhost:8080")
+	nc, err := nats.Connect("nats://localhost:7921")
 	if err != nil {
 		log.Printf("Error connecting to NATS: %v\n", err)
 		return
 	}
 	defer nc.Close()
-	fmt.Println("Listening localhost:8080 ")
+	fmt.Println("Listening localhost:7921 ")
 
 	// Create shared instances for metrics and broadcast module
 	metrics := NewMetric()

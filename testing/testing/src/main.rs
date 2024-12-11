@@ -55,8 +55,8 @@ async fn display_pag(vec: &Vec<file_reader::PageResponse>) {
 
 
 async fn publish_message(filtered_data: String, topic: String) -> Result<(), Box<dyn std::error::Error + Send + Sync >> {
-    let client = connect("nats://localhost:4222").await?;
-    println!("Connected to NATS server");
+    let client = connect("nats://localhost:7921").await?;
+    println!("Connected to NATS server port 7921");
     
     client.publish(topic, filtered_data.into()).await?;
     client.flush().await?;
@@ -95,7 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         display_pag(&page_logs).await;
         let filtered_data = pag_filtering(&page_logs)?;
         println!("{}", filtered_data);
-     //   publish_message(filtered_data, "page.response".to_string()).await?;
+        publish_message(filtered_data, "page.response".to_string()).await?;
         Ok::<usize, Box<dyn std::error::Error + Send + Sync>>(position)
     });
     let (inv_pos,pag_pos) = tokio::join!(task_1, task_2);
