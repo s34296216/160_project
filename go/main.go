@@ -211,7 +211,12 @@ func WebSocketServer(b *Broadcast) {
 		}
 
 		b.AddClient(conn)
-		log.Println("Client added and conncected")
+		log.Println("Client added and connected")
+
+		err = conn.WriteMessage(websocket.TextMessage, []byte("Hello, client!"))
+		if err != nil {
+			log.Printf("Error sending message: %v", err)
+		}
 	})
 
 	log.Println("WebSocket server started at ws://localhost:8080/ws")
