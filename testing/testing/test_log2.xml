@@ -1,0 +1,30 @@
+<logs>
+  <log>
+    <timestamp>2024-11-20T10:15:31Z</timestamp>
+    <event>page_response</event>
+    <user_ip>192.168.1.101</user_ip>
+    <endpoint>/product</endpoint>
+    <response_time_ms>1200</response_time_ms>
+  </log>
+  <log>
+    <timestamp>2024-11-20T10:15:32Z</timestamp>
+    <event>page_response</event>
+    <user_ip>192.168.1.102</user_ip>
+    <endpoint>/checkout</endpoint>
+    <response_time_ms>800</response_time_ms>
+  </log>
+  <log>
+    <timestamp>2024-11-20T10:18:25Z</timestamp>
+    <event>page_response</event>
+    <user_ip>192.168.1.177</user_ip>
+    <endpoint>/checkout</endpoint>
+    <response_time_ms>1500</response_time_ms>
+  </log>
+  <log>
+    <timestamp>2024-11-20T10:18:32Z</timestamp>
+    <event>page_response</event>
+    <user_ip>192.168.1.159</user_ip>
+    <endpoint>/checkout</endpoint>
+    <response_time_ms>450</response_time_ms>
+  </log>        
+</logs>
